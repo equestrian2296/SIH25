@@ -1,14 +1,15 @@
-﻿import 'dotenv/config'; // This loads immediately at import time
-
+﻿import 'dotenv/config'; 
 import express from "express";
 import connectDB from "./config/db.mjs";
 import videoRoutes from "./routes/videoRoutes.mjs";
+import authRoutes from "./routes/authRoutes.mjs";
 
 const app = express();
 app.use(express.json());
 
 connectDB();
 
+app.use("/auth", authRoutes);
 app.use("/videos", videoRoutes);
 
 // Add error handling middleware
