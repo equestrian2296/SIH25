@@ -1,7 +1,9 @@
-﻿const s3 = require("../config/s3");
-const Video = require("../models/Video");
+﻿import { PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import s3 from "../config/s3.mjs";
+import Video from "../models/Video.mjs";
 
-exports.uploadVideo = async (req, res) => {
+export const uploadVideo = async (req, res) => {
   try {
     const { userId = "anon", title = req.file.originalname } = req.body;
     const file = req.file;
@@ -9,12 +11,13 @@ exports.uploadVideo = async (req, res) => {
 
     const key = `videos/${userId}/${Date.now()}-${file.originalname}`;
 
-    await s3.putObject({
+    const command = new PutObjectCommand({
       Bucket: process.env.B2_BUCKET,
       Key: key,
       Body: file.buffer,
       ContentType: file.mimetype,
-    }).promise();
+    });
+    await s3.send(command);
 
     const video = await Video.create({
       userId,
@@ -29,19 +32,20 @@ exports.uploadVideo = async (req, res) => {
   }
 };
 
-exports.getSignedUploadUrl = async (req, res) => {
+export const getSignedUploadUrl = async (req, res) => {
   try {
     const { filename, userId = "anon", contentType = "video/mp4" } = req.query;
     if (!filename) return res.status(400).json({ error: "filename required" });
 
     const key = `videos/${userId}/${Date.now()}-${filename}`;
 
-    const uploadUrl = s3.getSignedUrl("putObject", {
+    const command = new PutObjectCommand({
       Bucket: process.env.B2_BUCKET,
       Key: key,
-      Expires: 15 * 60,
       ContentType: contentType,
     });
+
+    const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
 
     const videoDoc = await Video.create({
       userId,
@@ -55,23 +59,25 @@ exports.getSignedUploadUrl = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-exports.getSignedDownloadUrl = async (req, res) => {
+
+export const getSignedDownloadUrl = async (req, res) => {
   try {
     const { key } = req.query;
     if (!key) return res.status(400).json({ error: "key required" });
 
-    const url = s3.getSignedUrl("getObject", {
+    const command = new GetObjectCommand({
       Bucket: process.env.B2_BUCKET,
       Key: key,
-      Expires: 15 * 60,
     });
+
+    const url = await getSignedUrl(s3, command, { expiresIn: 900 });
     res.json({ url });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-exports.getUserVideos = async (req, res) => {
+export const getUserVideos = async (req, res) => {
   try {
     const videos = await Video.find({ userId: req.params.id }).sort({ createdAt: -1 });
     res.json(videos);
