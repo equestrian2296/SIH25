@@ -5,7 +5,7 @@ const fs = require("fs");
 
 const s3 = new S3Client({
   endpoint: process.env.B2_ENDPOINT,   // e.g. https://s3.eu-central-003.backblazeb2.com
-  region: "us-east-1",                 // required by SDK, ignored by Backblaze
+  region: process.env.B2_REGION,                 // required by SDK, ignored by Backblaze
   credentials: {
     accessKeyId: process.env.B2_KEY_ID,
     secretAccessKey: process.env.B2_APP_KEY,
